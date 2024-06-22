@@ -69,6 +69,8 @@ void App::Run(const AppConfig& config)
 			PhysicsWorld::Get()->Update(deltaTime);
 
 			mCurrentState->Update(deltaTime);
+			TimeUtil::UpdateFrame(deltaTime);
+			TimeUtil::UpdateGlobalTime(deltaTime);
 		}
 
 		auto gs = GraphicsSystem::Get();
