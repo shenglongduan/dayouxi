@@ -42,4 +42,5 @@ private:
 	//anmation
 	SpringEngine::Graphics::Animation mAnimation;
 	float mAnimationTime = 0.0f;
+	bool mParticleStop = true;
 };

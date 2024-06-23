@@ -9,7 +9,7 @@ using namespace SpringEngine::Input;
 
 void GameState::Initialize()
 {
-	mCamera.SetPosition({ 0.0f,8.0f,-8.0f });
+	mCamera.SetPosition({ 0.0f,3.0f,-3.0f });
 	mCamera.SetLookAt({ 0.0f,1.0f,0.0f });
 
 	mDirectionalLight.direction = Math::Normalize({ 1.0f,-1.0f,1.0f });
@@ -31,37 +31,58 @@ void GameState::Initialize()
 	mCharacterId1 = ModelManager::Get()->LoadModel("../../Assets/Models/Test/up.model");
 	mCharacter1 = CreateRenderGroup(mCharacterId1,&mCharacterAnimator1);
 	mCharacterAnimator1.Initialize(mCharacterId1);
+	mCharacterAnimator1.AddGlobalKeyFrame(0, [&]() { mCharacterAnimator1.Stop(); });
+	
 	
 	mCharacterAnimator1.PlayAnimation(0, true);
 
 	mCharacterId2 = ModelManager::Get()->LoadModel("../../Assets/Models/Jumping/Jumping.model");
 	mCharacter2 = CreateRenderGroup(mCharacterId2, &mCharacterAnimator2);
 	mCharacterAnimator2.Initialize(mCharacterId2);
-	mCharacterAnimator2.AddGlobalKeyFrame(0, [&]() { mCharacterAnimator2.Stop(); });
-	mCharacterAnimator2.AddGlobalKeyFrame(150, [&]() { mCharacterAnimator2.Start(); });
 	
 	mCharacterAnimator2.PlayAnimation(0, true);
 	mCharacterAnimator2.AddKeyFrame(0, [&]() { mCharacterAnimator2.ChangeSpeed(1.0f); });
 	mCharacterAnimator2.AddKeyFrame(mCharacterAnimator2.GetFrameCount() / 2, [&]() { mCharacterAnimator2.ChangeSpeed(0.1f); });
 	mCharacterAnimator2.AddKeyFrame(mCharacterAnimator2.GetFrameCount() * 3 / 4, [&]() { mCharacterAnimator2.ChangeSpeed(0.5f); });
+	mCharacterAnimator2.AddKeyFrame(mCharacterAnimator2.GetFrameCount() - 1, [&]() { 
+		Transform tempt = Transform();
+		tempt.scale = Math::Vector3::Zero;
+		RenderGroupSet(mCharacter2, tempt);
+		mCharacterAnimator2.Stop();
+		mCamera.SetPosition({ 0.0f,6.0f,-6.0f });
+	});
+	mCharacterAnimator1.AddGlobalKeyFrame(
+		mCharacterAnimator2.GetFrameCount() / 2 + 
+		(mCharacterAnimator2.GetFrameCount() * 3 / 4 - mCharacterAnimator2.GetFrameCount() / 2) * 10,
+		[&]() {
+			mAnimationTime = 1.0f;
+			mAnimation = AnimationBuilder()
+				.AddPositionKey({ 0.0f, 5.0f, 0.0f }, 0.0f, EaseType::EaseInOutQuad)
+				.AddPositionKey({ 0.0f, 0.5f, 0.0f }, 1.0f, EaseType::EaseInQuad)
+				.AddPositionKey({ 0.0f, 0.5f, 0.0f }, 1.1f)
+				.AddPositionKey({ 0.0f, 5.0f, 0.0f }, 2.0f, EaseType::EaseOutQuad)
+				.AddRotationKey({ 0.0f,0.0f,0.0f,1.0f }, 0.0f)
+				.AddRotationKey(Math::Quaternion::Normalize({ 6.28f,0.0f,0.0f,1.0f }), 2.0f)
+				.AddScaleKey({ 1.0f, 1.0f, 1.0f }, 0.0f)
+				.AddScaleKey({ 1.0f, 1.0f, 1.0f }, 0.8f)
+				.AddScaleKey({ 1.0f, 0.25f, 1.0f }, 1.0f)
+				.AddScaleKey({ 1.0f, 0.25f, 1.0f }, 1.1f)
+				.AddScaleKey({ 1.0f, 1.5f, 1.0f }, 1.25f)
+				.AddScaleKey({ 1.0f, 1.0f, 1.0f }, 2.0f)
+				.Build();
+			mParticleStop = false;
+			mCharacterAnimator1.Start();
+			
+		});
 	// mCharacterId = ModelManager::Get()->LoadModel("../../Assets/Models/Jumping/Jumping.model");
+	RenderGroupModify(mCharacter2, { 0.0f, 0.0f, 4.0f });
 
 	EventManager::Get()->AddListener(EventType::SpeacePressed, std::bind(&GameState::OnSpacePressedEvent, this, std::placeholders::_1));
 	ParticleInit();
 
 	mAnimation = AnimationBuilder()
-		.AddPositionKey({ 0.0f, 5.0f, 0.0f }, 0.0f, EaseType::EaseInOutQuad)
-		.AddPositionKey({ 0.0f, 0.5f, 0.0f }, 1.0f, EaseType::EaseInQuad)
-		.AddPositionKey({ 0.0f, 0.5f, 0.0f }, 1.1f)
-		.AddPositionKey({ 0.0f, 5.0f, 0.0f }, 2.0f, EaseType::EaseOutQuad)
-		.AddRotationKey({ 0.0f,0.0f,0.0f,1.0f }, 0.0f)
-		.AddRotationKey(Math::Quaternion::Normalize({ 6.28f,0.0f,0.0f,1.0f }), 2.0f)
-		.AddScaleKey({ 1.0f, 1.0f, 1.0f }, 0.0f)
-		.AddScaleKey({ 1.0f, 1.0f, 1.0f }, 0.8f)
-		.AddScaleKey({ 1.0f, 0.25f, 1.0f }, 1.0f)
-		.AddScaleKey({ 1.0f, 0.25f, 1.0f }, 1.1f)
-		.AddScaleKey({ 1.0f, 1.5f, 1.0f }, 1.25f)
-		.AddScaleKey({ 1.0f, 1.0f, 1.0f }, 2.0f)
+		.AddPositionKey({ 0.0f, 0.0f, 0.0f }, 0.0f, EaseType::EaseInOutQuad)
+		.AddPositionKey({ 0.0f, 0.0f, 0.0f }, 2.0f, EaseType::EaseOutQuad)
 		.Build();
 	mAnimationTime = 0.0f;
 }
@@ -80,7 +101,10 @@ void GameState::Update(const float deltaTime)
 	if (TimeUtil::GetGlobalTime() > 45.0f) {
 		return;
 	}
-	mParticleSystem.Update(deltaTime);
+	if (!mParticleStop) {
+		mParticleSystem.Update(deltaTime);
+	}
+	
 	UpdateCameraControl(deltaTime);
 
 	if (Input::InputSystem::Get()->IsKeyPressed(Input::KeyCode::SPACE))
@@ -104,7 +128,6 @@ void GameState::Render()
 {
 	SimpleDraw::AddGroundPlane(10.0f, Colors::White);
 	SimpleDraw::Render(mCamera);
-
 	RenderGroupSet(mCharacter1, mAnimation.GetTransform(mAnimationTime));
 
 	mStandardEffect.Begin();
